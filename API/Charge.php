@@ -5,6 +5,8 @@ namespace Modules\Stripe\API;
 use Lightning\Model\User;
 use Lightning\Tools\Communicator\RestClient;
 use Lightning\Tools\Configuration;
+use Lightning\Tools\Mailer;
+use Lightning\Tools\Messenger;
 use Lightning\Tools\Output;
 use Lightning\Tools\Request;
 use Lightning\View\API;
@@ -24,6 +26,9 @@ class Charge extends API {
         $client->set('currency', $currency);
         $client->set('source', $token);
         $client->set('metadata', $meta);
+        if ($descriptor = Configuration::get('stripe.statement_descriptor')) {
+            $client->set('statement_descriptor', substr(preg_replace('/[^a-z0-9 ]/i', '', $descriptor), 0, 22));
+        }
         $client->setBasicAuth(Configuration::get('stripe.private'), '');
         $client->callPost();
         if ($client->hasErrors()) {
@@ -85,8 +90,13 @@ class Charge extends API {
                 'zip' => $addresses['billing_address_zip'],
                 'country' => $payment_response['card']['country'],
             ]);
-            $billing_address->save();
+            if (!empty($shipping_address) && $shipping_address->equalsData($billing_address)) {
+                $billing_address = $shipping_address;
+            } else {
+                $billing_address->save();
+            }
 
+            // Add the payment to the database.
             $payment = $order->addPayment($amount, $currency, $token, [
                 'billing_address' => $billing_address->id,
                 'time' => $payment_response['created'],
@@ -97,6 +107,22 @@ class Charge extends API {
             ]);
 
             $order->save();
+
+            // Set Meta Data for email.
+            $mailer = new Mailer();
+            $mailer->setCustomVariable('META', $meta);
+            $mailer->setCustomVariable('SHIPPING_ADDRESS_BLOCK', $shipping_address->name . '<br>' . $shipping_address->street . ' ' . $shipping_address->street2 . '<br>' . $shipping_address->city . ', ' . $shipping_address->state . ' ' . $shipping_address->zip);
+
+            // Send emails.
+            if ($buyer_email = Configuration::get('stripe.buyer_email')) {
+                $mailer->sendOne($buyer_email, $user);
+            }
+            if ($seller_email = Configuration::get('stripe.seller_email')) {
+                $mailer->sendOne($seller_email, Configuration::get('contact.to')[0]);
+            }
+
+            Messenger::message('Your order has been processed!');
+            return true;
         }
     }
 }
