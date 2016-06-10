@@ -122,7 +122,7 @@ class Charge extends API {
             }
 
             Messenger::message('Your order has been processed!');
-            return true;
+            return Output::SUCCESS;
         }
     }
 }
