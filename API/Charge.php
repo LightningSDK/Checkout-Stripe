@@ -14,18 +14,42 @@ use Modules\Checkout\Model\Address;
 use Modules\Checkout\Model\Order;
 
 class Charge extends API {
+
+    const BILLING = 'billing';
+    const SHIPPING = 'shipping';
+
+    /**
+     * @var Order
+     */
+    protected $order;
+    protected $amount;
+    protected $token;
+    protected $currency;
+    protected $meta;
+    protected $payment_response;
+
+    /**
+     * @var Address
+     */
+    protected $shipping_address;
+
+    /**
+     * @var User
+     */
+    protected $user;
+
     public function post() {
         // Create the charge on Stripe's servers - this will charge the user's card
         $client = new RestClient('https://api.stripe.com/v1/charges');
-        $amount = Request::post('amount', 'int');
-        $token = Request::post('token');
-        $currency = Request::post('currency');
-        $meta = Request::post('meta', 'assoc_array');
-        $payment_response = Request::post('payment_data', 'assoc_array');
-        $client->set('amount', $amount);
-        $client->set('currency', $currency);
-        $client->set('source', $token);
-        $client->set('metadata', $meta);
+        $this->amount = Request::post('amount', 'int');
+        $this->token = Request::post('token');
+        $this->currency = Request::post('currency');
+        $this->meta = Request::post('meta', 'assoc_array');
+        $this->payment_response = Request::post('payment_data', 'assoc_array');
+        $client->set('amount', $this->amount);
+        $client->set('currency', $this->currency);
+        $client->set('source', $this->token);
+        $client->set('metadata', $this->meta);
         if ($descriptor = Configuration::get('stripe.statement_descriptor')) {
             $client->set('statement_descriptor', substr(preg_replace('/[^a-z0-9 ]/i', '', $descriptor), 0, 22));
         }
@@ -36,93 +60,108 @@ class Charge extends API {
             return Output::ERROR;
         }
 
+        $this->createOrSaveOrder();
+
+        if (!empty($this->order)) {
+            $this->addAddresses();
+            $this->order->save();
+            $this->sendNotifications();
+        }
+
+        return Output::SUCCESS;
+    }
+
+    protected function createOrSaveOrder() {
         if ($order_id = Request::post('order_id', 'int')) {
             // Payment for an existing order or cart.
-            $order = Order::loadByID($order_id);
-            $order->details[] = [
-                'metadata' => $meta,
-                'payment_data' => $payment_response,
+            $this->order = Order::loadByID($order_id);
+            $this->order->details[] = [
+                'metadata' => $this->meta,
+                'payment_data' => $this->payment_response,
             ];
         } elseif (Request::post('create_order', 'boolean')) {
             // Create a new order.
-            $order = new Order([
-                'total' => $amount,
-                'time' => $payment_response['created'],
-                'gateway_id' => $token,
+            $this->order = new Order([
+                'total' => $this->amount,
+                'time' => $this->payment_response['created'],
+                'gateway_id' => $this->token,
                 'details' => [
-                    'metadata' => $meta,
-                    'payment_data' => $payment_response,
+                    'metadata' => $this->meta,
+                    'payment_data' => $this->payment_response,
                 ],
             ]);
         }
+    }
 
-        if (!empty($order)) {
+    /**
+     * @param string $type
+     *
+     * @return Address
+     */
+    protected function getAddress($type) {
+        static $addresses = null;
+        if ($addresses === null) {
             $addresses = Request::post('addresses', 'assoc_array');
-
-            if (empty($order->shipping_address)) {
-                // TODO: Check if the address already exists first.
-
-                $shipping_address = new Address([
-                    'name' => $addresses['shipping_name'],
-                    'street' => $addresses['shipping_address_line1'],
-                    'street2' => !empty($addresses['shipping_address_line2']) ? $addresses['shipping_address_line2'] : '',
-                    'city' => $addresses['shipping_address_city'],
-                    'state' => $addresses['shipping_address_state'],
-                    'zip' => $addresses['shipping_address_zip'],
-                    'country' => $payment_response['card']['country'],
-                ]);
-                $shipping_address->save();
-                $order->shipping_address = $shipping_address->id;
-            }
-
-            $user = User::addUser($payment_response['email'], [
-                'full_name' => $payment_response['card']['name']
-            ]);
-            $order->user_id = $user->id;
-
-            // TODO: Also check if this exists.
-            $billing_address = new Address([
-                'name' => $addresses['billing_name'],
-                'street' => $addresses['billing_address_line1'],
-                'street2' => !empty($addresses['billing_address_line2']) ? $addresses['billing_address_line2'] : '',
-                'city' => $addresses['billing_address_city'],
-                'state' => $addresses['billing_address_state'],
-                'zip' => $addresses['billing_address_zip'],
-                'country' => $payment_response['card']['country'],
-            ]);
-            if (!empty($shipping_address) && $shipping_address->equalsData($billing_address)) {
-                $billing_address = $shipping_address;
-            } else {
-                $billing_address->save();
-            }
-
-            // Add the payment to the database.
-            $payment = $order->addPayment($amount, $currency, $token, [
-                'billing_address' => $billing_address->id,
-                'time' => $payment_response['created'],
-                'details' => [
-                    'metadata' => $meta,
-                    'payment_data' => $payment_response,
-                ]
-            ]);
-
-            $order->save();
-
-            // Set Meta Data for email.
-            $mailer = new Mailer();
-            $mailer->setCustomVariable('META', $meta);
-            $mailer->setCustomVariable('SHIPPING_ADDRESS_BLOCK', $shipping_address->name . '<br>' . $shipping_address->street . ' ' . $shipping_address->street2 . '<br>' . $shipping_address->city . ', ' . $shipping_address->state . ' ' . $shipping_address->zip);
-
-            // Send emails.
-            if ($buyer_email = Configuration::get('stripe.buyer_email')) {
-                $mailer->sendOne($buyer_email, $user);
-            }
-            if ($seller_email = Configuration::get('stripe.seller_email')) {
-                $mailer->sendOne($seller_email, Configuration::get('contact.to')[0]);
-            }
-
-            Messenger::message('Your order has been processed!');
-            return Output::SUCCESS;
         }
+        return new Address([
+            'name' => $addresses[$type . '_name'],
+            'street' => $addresses[$type . '_address_line1'],
+            'street2' => !empty($addresses[$type . '_address_line2']) ? $addresses[$type . '_address_line2'] : '',
+            'city' => $addresses[$type . '_address_city'],
+            'state' => $addresses[$type . '_address_state'],
+            'zip' => $addresses[$type . '_address_zip'],
+            'country' => $addresses[$type . '_address_country_code'],
+        ]);
+    }
+
+    protected function addAddresses() {
+
+        if (empty($this->order->shipping_address)) {
+            // TODO: Check if the address already exists first.
+
+            $this->shipping_address = $this->getAddress(static::SHIPPING);
+            $this->shipping_address->save();
+            $this->order->shipping_address = $this->shipping_address->id;
+        }
+
+        $this->user = User::addUser($this->payment_response['email'], [
+            'full_name' => $this->payment_response['card']['name']
+        ]);
+        $this->order->user_id = $this->user->id;
+
+        // TODO: Also check if this exists.
+        $billing_address = $this->getAddress(static::BILLING);
+        if (!empty($shipping_address) && $shipping_address->equalsData($billing_address)) {
+            $billing_address = $shipping_address;
+        } else {
+            $billing_address->save();
+        }
+
+        // Add the payment to the database.
+        $payment = $this->order->addPayment($this->amount, $this->currency, $this->token, [
+            'billing_address' => $billing_address->id,
+            'time' => $this->payment_response['created'],
+            'details' => [
+                'metadata' => $this->meta,
+                'payment_data' => $this->payment_response,
+            ]
+        ]);
+    }
+
+    protected function sendNotifications() {
+        // Set Meta Data for email.
+        $mailer = new Mailer();
+        $mailer->setCustomVariable('META', $this->meta);
+        $mailer->setCustomVariable('SHIPPING_ADDRESS_BLOCK', $this->shipping_address->getHTMLFormatted());
+
+        // Send emails.
+        if ($buyer_email = Configuration::get('stripe.buyer_email')) {
+            $mailer->sendOne($buyer_email, $this->user);
+        }
+        if ($seller_email = Configuration::get('stripe.seller_email')) {
+            $mailer->sendOne($seller_email, Configuration::get('contact.to')[0]);
+        }
+
+        Messenger::message('Your order has been processed!');
     }
 }
