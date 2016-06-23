@@ -34,6 +34,11 @@ class Charge extends API {
     protected $shipping_address;
 
     /**
+     * @var Address
+     */
+    protected $billing_address;
+
+    /**
      * @var User
      */
     protected $user;
@@ -62,19 +67,43 @@ class Charge extends API {
 
         $this->createOrSaveOrder();
 
-        if (!empty($this->order)) {
-            $this->addAddresses();
-            $this->order->save();
-            $this->sendNotifications();
+        if (empty($this->order)) {
+            throw new \Exception('Invalid Order');
         }
+
+        $this->addAddresses();
+        $this->order->save();
+
+        // Add the payment to the database.
+        $payment = $this->order->addPayment($this->amount, $this->currency, $this->token, [
+            'billing_address' => $this->billing_address->id,
+            'time' => $this->payment_response['created'],
+            'details' => [
+                'metadata' => $this->meta,
+                'payment_data' => $this->payment_response,
+            ]
+        ]);
+
+        $this->sendNotifications();
 
         return Output::SUCCESS;
     }
 
     protected function createOrSaveOrder() {
-        if ($order_id = Request::post('order_id', 'int')) {
+        if (!empty($this->meta['cart_id'])) {
+            $order_id = intval($this->meta['cart_id']);
+            if (empty($order_id)) {
+                throw new \Exception('Invalid Order Id');
+            }
+
             // Payment for an existing order or cart.
-            $this->order = Order::loadByID($order_id);
+            $this->order = Order::loadBySession($order_id);
+            if ($this->order->getTotal() * 100 != $this->amount) {
+                throw new \Exception('Invalid Amount');
+            }
+            $this->order->paid = $this->payment_response['created'];
+            $this->order->gateway_id = $this->token;
+            $this->order->locked = 1;
             $this->order->details[] = [
                 'metadata' => $this->meta,
                 'payment_data' => $this->payment_response,
@@ -83,7 +112,8 @@ class Charge extends API {
             // Create a new order.
             $this->order = new Order([
                 'total' => $this->amount,
-                'time' => $this->payment_response['created'],
+                'time' => time(),
+                'paid' => $this->payment_response['created'],
                 'gateway_id' => $this->token,
                 'details' => [
                     'metadata' => $this->meta,
@@ -132,20 +162,10 @@ class Charge extends API {
         // TODO: Also check if this exists.
         $billing_address = $this->getAddress(static::BILLING);
         if (!empty($shipping_address) && $shipping_address->equalsData($billing_address)) {
-            $billing_address = $shipping_address;
+            $this->billing_address = $shipping_address;
         } else {
-            $billing_address->save();
+            $this->billing_address->save();
         }
-
-        // Add the payment to the database.
-        $payment = $this->order->addPayment($this->amount, $this->currency, $this->token, [
-            'billing_address' => $billing_address->id,
-            'time' => $this->payment_response['created'],
-            'details' => [
-                'metadata' => $this->meta,
-                'payment_data' => $this->payment_response,
-            ]
-        ]);
     }
 
     protected function sendNotifications() {
