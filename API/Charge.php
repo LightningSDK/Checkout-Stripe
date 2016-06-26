@@ -104,7 +104,10 @@ class Charge extends API {
             $this->order->paid = $this->payment_response['created'];
             $this->order->gateway_id = $this->token;
             $this->order->locked = 1;
-            $this->order->details[] = [
+            if (empty($this->order->details->payments)) {
+                $this->order->details->payments = [];
+            }
+            $this->order->details->payments[] = [
                 'metadata' => $this->meta,
                 'payment_data' => $this->payment_response,
             ];
@@ -116,8 +119,12 @@ class Charge extends API {
                 'paid' => $this->payment_response['created'],
                 'gateway_id' => $this->token,
                 'details' => [
-                    'metadata' => $this->meta,
-                    'payment_data' => $this->payment_response,
+                    'payments' => [
+                        [
+                            'metadata' => $this->meta,
+                            'payment_data' => $this->payment_response,
+                        ],
+                    ]
                 ],
             ]);
         }
