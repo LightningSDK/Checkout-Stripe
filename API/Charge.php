@@ -104,14 +104,11 @@ class Charge extends API {
             $this->order->paid = $this->payment_response['created'];
             $this->order->gateway_id = $this->token;
             $this->order->locked = 1;
-            if (empty($this->order->details->payments)) {
-                $this->order->details->payments = [];
-            }
-            $this->order->details->payments[] = [
+            $this->order->details[] = [
                 'metadata' => $this->meta,
                 'payment_data' => $this->payment_response,
             ];
-        } elseif (Request::post('create_order', 'boolean')) {
+        } else {
             // Create a new order.
             $this->order = new Order([
                 'total' => $this->amount,
@@ -119,12 +116,8 @@ class Charge extends API {
                 'paid' => $this->payment_response['created'],
                 'gateway_id' => $this->token,
                 'details' => [
-                    'payments' => [
-                        [
-                            'metadata' => $this->meta,
-                            'payment_data' => $this->payment_response,
-                        ],
-                    ]
+                    'metadata' => $this->meta,
+                    'payment_data' => $this->payment_response,
                 ],
             ]);
         }
@@ -139,6 +132,10 @@ class Charge extends API {
         static $addresses = null;
         if ($addresses === null) {
             $addresses = Request::post('addresses', 'assoc_array');
+        }
+        if (empty($addresses[$type . '_name'])) {
+            // This address is not present.
+            return null;
         }
         return new Address([
             'name' => $addresses[$type . '_name'],
@@ -156,9 +153,10 @@ class Charge extends API {
         if (empty($this->order->shipping_address)) {
             // TODO: Check if the address already exists first.
 
-            $this->shipping_address = $this->getAddress(static::SHIPPING);
-            $this->shipping_address->save();
-            $this->order->shipping_address = $this->shipping_address->id;
+            if ($this->shipping_address = $this->getAddress(static::SHIPPING)) {
+                $this->shipping_address->save();
+                $this->order->shipping_address = $this->shipping_address->id;
+            }
         }
 
         $this->user = User::addUser($this->payment_response['email'], [
@@ -167,9 +165,9 @@ class Charge extends API {
         $this->order->user_id = $this->user->id;
 
         // TODO: Also check if this exists.
-        $billing_address = $this->getAddress(static::BILLING);
-        if (!empty($shipping_address) && $shipping_address->equalsData($billing_address)) {
-            $this->billing_address = $shipping_address;
+        $this->billing_address = $this->getAddress(static::BILLING);
+        if (!empty($this->shipping_address) && $this->shipping_address->equalsData($this->billing_address)) {
+            $this->billing_address = $this->shipping_address;
         } else {
             $this->billing_address->save();
         }
@@ -179,7 +177,9 @@ class Charge extends API {
         // Set Meta Data for email.
         $mailer = new Mailer();
         $mailer->setCustomVariable('META', $this->meta);
-        $mailer->setCustomVariable('SHIPPING_ADDRESS_BLOCK', $this->shipping_address->getHTMLFormatted());
+        if ($this->shipping_address) {
+            $mailer->setCustomVariable('SHIPPING_ADDRESS_BLOCK', $this->shipping_address->getHTMLFormatted());
+        }
 
         // Send emails.
         if ($buyer_email = Configuration::get('stripe.buyer_email')) {

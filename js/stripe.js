@@ -51,7 +51,6 @@
                     token: token.id,
                     meta: self.meta,
                     currency: 'usd',
-                    create_order: true,
                     payment_data: token,
                     addresses: addresses
                 },
