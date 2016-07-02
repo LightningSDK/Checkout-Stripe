@@ -160,7 +160,9 @@ class Charge extends API {
         }
 
         $this->user = User::addUser($this->payment_response['email'], [
-            'full_name' => $this->payment_response['card']['name']
+            'full_name' => !empty($this->payment_response['card']['name'])
+                ? $this->payment_response['card']['name']
+                : Request::post('addresses.billing_name', Request::TYPE_STRING, '')
         ]);
         $this->order->user_id = $this->user->id;
 
