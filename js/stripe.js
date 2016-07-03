@@ -34,10 +34,11 @@
             if (details.cart_id) {
                 self.meta.cart_id = details.cart_id;
             }
+            self.amount = details.amount * 100;
             self.handler.open({
                 name: '',
                 description: '',
-                amount: details.amount * 100,
+                amount: self.amount,
             });
         },
 
@@ -47,7 +48,7 @@
                 type: 'POST',
                 dataType: 'JSON',
                 data: {
-                    amount: token.amount,
+                    amount: self.amount,
                     token: token.id,
                     meta: self.meta,
                     currency: 'usd',
