@@ -185,6 +185,8 @@ class Charge extends API {
             $mailer->setCustomVariable('SHIPPING_ADDRESS_BLOCK', $this->shipping_address->getHTMLFormatted());
         }
 
+        $mailer->setCustomVariable('ORDER_DETAILS', $this->order->formatContents());
+
         // Send emails.
         if ($buyer_email = Configuration::get('stripe.buyer_email')) {
             $mailer->sendOne($buyer_email, $this->user);
