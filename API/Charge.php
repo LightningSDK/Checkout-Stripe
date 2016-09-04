@@ -144,7 +144,7 @@ class Charge extends API {
             'street' => $addresses[$type . '_address_line1'],
             'street2' => !empty($addresses[$type . '_address_line2']) ? $addresses[$type . '_address_line2'] : '',
             'city' => $addresses[$type . '_address_city'],
-            'state' => $addresses[$type . '_address_state'],
+            'state' => $addresses[$type . '_address_state'] ?: '',
             'zip' => $addresses[$type . '_address_zip'],
             'country' => $addresses[$type . '_address_country_code'],
         ]);
