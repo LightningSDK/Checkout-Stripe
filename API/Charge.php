@@ -12,6 +12,7 @@ use Lightning\Tools\Request;
 use Lightning\View\API;
 use Modules\Checkout\Model\Address;
 use Modules\Checkout\Model\Order;
+use Modules\Stripe\Model\StripeCustomer;
 
 class Charge extends API {
 
@@ -29,6 +30,16 @@ class Charge extends API {
     protected $payment_response;
 
     /**
+     * @var RestClient
+     */
+    protected $client;
+
+    /**
+     * @var boolean
+     */
+    protected $createCustomer;
+
+    /**
      * @var Address
      */
     protected $shipping_address;
@@ -38,6 +49,8 @@ class Charge extends API {
      */
     protected $billing_address;
 
+    protected $transactionId;
+
     /**
      * @var User
      */
@@ -45,24 +58,19 @@ class Charge extends API {
 
     public function post() {
         // Create the charge on Stripe's servers - this will charge the user's card
-        $client = new RestClient('https://api.stripe.com/v1/charges');
-        $this->amount = Request::post('amount', 'int');
+        $this->amount = Request::post('amount', Request::TYPE_INT);
         $this->token = Request::post('token');
         $this->currency = Request::post('currency');
-        $this->meta = Request::post('meta', 'assoc_array');
-        $this->payment_response = Request::post('payment_data', 'assoc_array');
-        $client->set('amount', $this->amount);
-        $client->set('currency', $this->currency);
-        $client->set('source', $this->token);
-        $client->set('metadata', $this->meta);
-        if ($descriptor = Configuration::get('stripe.statement_descriptor')) {
-            $client->set('statement_descriptor', substr(preg_replace('/[^a-z0-9 ]/i', '', $descriptor), 0, 22));
-        }
-        $client->setBasicAuth(Configuration::get('stripe.private'), '');
-        $client->callPost();
-        if ($client->hasErrors()) {
-            Output::error($client->getErrors());
-            return Output::ERROR;
+        $this->meta = Request::post('meta', Request::TYPE_ASSOC_ARRAY);
+        $this->payment_response = Request::post('payment_data', Request::TYPE_ASSOC_ARRAY);
+        $this->createCustomer = ($this->meta['create_customer'] == 'true');
+
+        $this->client = new RestClient('https://api.stripe.com/v1/');
+        $this->client->setBasicAuth(Configuration::get('stripe.private'), '');
+        if ($this->createCustomer) {
+            $this->createAndChargeCustomer();
+        } else {
+            $this->chargeToken();
         }
 
         $this->createOrSaveOrder();
@@ -89,6 +97,73 @@ class Charge extends API {
         return Output::SUCCESS;
     }
 
+    protected function createAndChargeCustomer() {
+        // Create the customer.
+        $description = '';
+        if (!empty($this->payment_response['card']['name'])) {
+            $description .= $this->payment_response['card']['name'] . ' ';
+        }
+        if (!empty($this->payment_response['email'])) {
+            $description .= $this->payment_response['email'] . ' ';
+        }
+        $this->client->set('description', $description);
+        $this->client->set('source', $this->token);
+        $this->client->callPost('customers');
+
+        if ($this->client->hasErrors()) {
+            Output::error($this->client->getErrors());
+            return Output::ERROR;
+        }
+
+        $customer_id = $this->client->get('id');
+
+        // Charge the customer.
+        $this->client->clearRequestVars();
+        $this->client->set('amount', $this->amount);
+        $this->client->set('currency', $this->currency);
+        $this->client->set('customer', $customer_id);
+        $this->client->callPost('charges');
+
+        if ($this->client->hasErrors()) {
+            Output::error($this->client->getErrors());
+            return Output::ERROR;
+        }
+
+        $this->transactionId = $this->client->get('id');
+
+        // Create a customer entry.
+        $user = User::addUser($this->payment_response['email']);
+        $customer = StripeCustomer::loadByID($user->id);
+        if ($customer) {
+            $customer->customer_id = $customer_id;
+            $customer->save();
+        } else {
+            $customer = new StripeCustomer([
+                'user_id' => $user->id,
+                'customer_id' => $customer_id,
+            ]);
+            $customer->save();
+        }
+    }
+
+    protected function chargeToken() {
+        $this->client->set('amount', $this->amount);
+        $this->client->set('currency', $this->currency);
+        $this->client->set('source', $this->token);
+        $this->client->set('metadata', $this->meta);
+        if ($descriptor = Configuration::get('stripe.statement_descriptor')) {
+            $this->client->set('statement_descriptor', substr(preg_replace('/[^a-z0-9 ]/i', '', $descriptor), 0, 22));
+        }
+        $this->client->callPost('charges');
+
+        if ($this->client->hasErrors()) {
+            Output::error($this->client->getErrors());
+            return Output::ERROR;
+        }
+
+        $this->transactionId = $this->client->get('id');
+    }
+
     protected function createOrSaveOrder() {
         if (!empty($this->meta['cart_id'])) {
             $order_id = intval($this->meta['cart_id']);
@@ -102,7 +177,7 @@ class Charge extends API {
                 throw new \Exception('Invalid Amount');
             }
             $this->order->paid = $this->payment_response['created'];
-            $this->order->gateway_id = $this->token;
+            $this->order->gateway_id = $this->transactionId;
             $this->order->locked = 1;
             $this->order->details->payments[] = [
                 'metadata' => $this->meta,
@@ -114,7 +189,7 @@ class Charge extends API {
                 'total' => $this->amount,
                 'time' => time(),
                 'paid' => $this->payment_response['created'],
-                'gateway_id' => $this->token,
+                'gateway_id' => $this->transactionId,
                 'details' => [
                     'payments' => [
                         'metadata' => $this->meta,
@@ -122,6 +197,10 @@ class Charge extends API {
                     ]
                 ],
             ]);
+            $this->order->save();
+            if (!empty($this->meta['product_id'])) {
+                $this->order->addItem($this->meta['product_id'], 1);
+            }
         }
     }
 

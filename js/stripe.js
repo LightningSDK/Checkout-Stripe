@@ -34,6 +34,12 @@
             if (details.cart_id) {
                 self.meta.cart_id = details.cart_id;
             }
+            if (details.product_id) {
+                self.meta.product_id = details.product_id;
+            }
+            if (details.create_customer) {
+                self.meta.create_customer = true;
+            }
             self.amount = details.amount * 100;
             self.handler.open({
                 name: '',
@@ -43,6 +49,7 @@
         },
 
         process: function (token, addresses) {
+            lightning.dialog.showLoader();
             $.ajax({
                 url: '/api/stripe/charge',
                 type: 'POST',
