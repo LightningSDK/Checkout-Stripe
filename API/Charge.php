@@ -207,7 +207,7 @@ class Charge extends API {
             if (!empty($this->meta['product_id'])) {
                 $this->order->addItem($this->meta['product_id'], 1);
                 $product = Product::loadByID($this->meta['product_id']);
-                $this->customProductEmail = $product->settings->customer_email;
+                $this->customProductEmail = $product->options->customer_email;
             }
         }
     }

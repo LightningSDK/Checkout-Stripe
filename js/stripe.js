@@ -1,6 +1,5 @@
 (function() {
-    var self;
-    lightning.modules.stripe = {
+    var self = lightning.modules.stripe = {
         meta: {},
 
         init: function () {
@@ -42,7 +41,7 @@
             }
             self.amount = details.amount * 100;
             self.handler.open({
-                name: '',
+                name: details.hasOwnProperty('title') ? details.title : '',
                 description: '',
                 amount: self.amount,
             });
@@ -73,5 +72,4 @@
         callback: function () {
         }
     };
-    self = lightning.modules.stripe;
 }());
