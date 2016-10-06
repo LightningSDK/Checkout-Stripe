@@ -63,7 +63,9 @@
                     addresses: addresses
                 },
                 success: function (data) {
-                    self.callback();
+                    if (self.callback) {
+                        self.callback();
+                    }
                 }
             });
         },

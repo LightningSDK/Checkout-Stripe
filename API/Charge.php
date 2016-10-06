@@ -12,6 +12,7 @@ use Lightning\Tools\Request;
 use Lightning\View\API;
 use Modules\Checkout\Model\Address;
 use Modules\Checkout\Model\Order;
+use Modules\Checkout\Model\Product;
 use Modules\Stripe\Model\StripeCustomer;
 
 class Charge extends API {
@@ -38,6 +39,11 @@ class Charge extends API {
      * @var boolean
      */
     protected $createCustomer;
+
+    /**
+     * @var integer
+     */
+    protected $customProductEmail;
 
     /**
      * @var Address
@@ -200,6 +206,8 @@ class Charge extends API {
             $this->order->save();
             if (!empty($this->meta['product_id'])) {
                 $this->order->addItem($this->meta['product_id'], 1);
+                $product = Product::loadByID($this->meta['product_id']);
+                $this->customProductEmail = $product->settings->customer_email;
             }
         }
     }
@@ -267,6 +275,9 @@ class Charge extends API {
         $mailer->setCustomVariable('ORDER_DETAILS', $this->order->formatContents());
 
         // Send emails.
+        if (!empty($this->customProductEmail)) {
+            $mailer->sendOne($this->customProductEmail, $this->user);
+        }
         if ($buyer_email = Configuration::get('stripe.buyer_email')) {
             $mailer->sendOne($buyer_email, $this->user);
         }
