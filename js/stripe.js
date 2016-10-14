@@ -4,31 +4,38 @@
 
         init: function () {
             lightning.require('https://checkout.stripe.com/checkout.js', function(){
-                // Create the handler.
-                self.initHandler();
-
                 // Close Checkout on page navigation:
                 $(window).on('popstate', function () {
-                    handler.close();
+                    self.handler.close();
                 });
             });
         },
 
-        initHandler: function() {
-            self.handler = StripeCheckout.configure({
+        initHandler: function(input_settings) {
+            var settings = {
                 key: lightning.get('modules.stripe.public'),
                 locale: 'auto',
                 zipCode: true,
-                shippingAddress: true,
                 billingAddress: true,
-                bitcoin: true,
+                shippingAddress: input_settings.shipping_address ? true : false,
+                bitcoin: input_settings.bitcoin ? true : false,
                 token: self.process
-            });
+            };
+            self.handler = StripeCheckout.configure(settings);
         },
 
         pay: function (details, callback) {
             self.callback = callback;
-            self.initHandler();
+
+            // These options must be provided to the Stripe handler if they are set in details or globally.
+            if (details.shipping_address || lightning.get('modules.checkout.shipping_address', false)) {
+                details.shipping_address = true;
+            }
+            if (details.bitcoin || lightning.get('modules.checkout.bitcoin', false)) {
+                details.bitcoin = true;
+            }
+
+            self.initHandler(details);
             self.meta = {};
             if (details.cart_id) {
                 self.meta.cart_id = details.cart_id;
