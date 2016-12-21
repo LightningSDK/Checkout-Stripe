@@ -6,6 +6,8 @@ use Lightning\Database\Schema;
 
 class StripeCustomer extends Schema {
 
+    const TABLE = 'stripe_customer';
+
     public function getColumns() {
         return [
             'user_id' => $this->int(true),

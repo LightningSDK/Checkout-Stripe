@@ -10,4 +10,11 @@ return [
             'api/stripe/charge' => 'Modules\\Stripe\\API\\Charge',
         ]
     ],
+    'js' => [
+        // Module Name
+        'Stripe' => [
+            // Source file => Dest file
+            'Stripe.js' => 'Checkout.min.js',
+        ]
+    ]
 ];
