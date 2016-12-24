@@ -69,7 +69,7 @@ class Charge extends API {
         $this->currency = Request::post('currency');
         $this->meta = Request::post('meta', Request::TYPE_ASSOC_ARRAY);
         $this->payment_response = Request::post('payment_data', Request::TYPE_ASSOC_ARRAY);
-        $this->createCustomer = ($this->meta['create_customer'] == 'true');
+        $this->createCustomer = (!empty($this->meta['create_customer']) && $this->meta['create_customer'] == 'true');
 
         $this->client = new RestClient('https://api.stripe.com/v1/');
         $this->client->setBasicAuth(Configuration::get('stripe.private'), '');
