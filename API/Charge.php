@@ -179,7 +179,7 @@ class Charge extends API {
             }
 
             // Payment for an existing order or cart.
-            $this->order = Order::loadBySession($order_id);
+            $this->order = Order::loadByID($order_id);
             if ($this->order->getTotal() * 100 != $this->amount) {
                 throw new \Exception('Invalid Amount');
             }
@@ -227,15 +227,22 @@ class Charge extends API {
             // This address is not present.
             return null;
         }
-        return new Address([
-            'name' => $addresses[$type . '_name'],
-            'street' => $addresses[$type . '_address_line1'],
-            'street2' => !empty($addresses[$type . '_address_line2']) ? $addresses[$type . '_address_line2'] : '',
-            'city' => $addresses[$type . '_address_city'],
-            'state' => $addresses[$type . '_address_state'] ?: '',
-            'zip' => $addresses[$type . '_address_zip'],
-            'country' => $addresses[$type . '_address_country_code'],
-        ]);
+        $address_map = [
+            'name' => '_name',
+            'street' => '_address_line1',
+            'street2' => '_address_line2',
+            'city' => '_address_city',
+            'state' => '_address_state',
+            'zip' => '_address_zip',
+            'country' => '_address_country_code'
+        ];
+
+        $new_address = [];
+        foreach ($address_map as $new => $old) {
+            $new_address[$new] = !empty($addresses[$type . $old]) ? $addresses[$type . $old] : '';
+        }
+
+        return new Address($new_address);
     }
 
     protected function addAddresses() {
