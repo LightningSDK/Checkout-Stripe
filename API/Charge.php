@@ -74,6 +74,7 @@ class Charge extends API {
         $this->client = new RestClient('https://api.stripe.com/v1/');
         $this->client->setBasicAuth(Configuration::get('stripe.private'), '');
         if ($this->createCustomer) {
+            // TODO: If this fails, it returns OUTPUT::ERROR and tries to continue - it should abort.
             $this->createAndChargeCustomer();
         } else {
             $this->chargeToken();
