@@ -1,4 +1,7 @@
 (function() {
+    if (lightning.modules.stripe) {
+        return;
+    }
     var self = lightning.modules.stripe = {
         meta: {},
 
