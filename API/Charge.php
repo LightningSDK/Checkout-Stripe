@@ -3,6 +3,7 @@
 namespace Modules\Stripe\API;
 
 use Lightning\Model\User;
+use Lightning\Tools\ClientUser;
 use Lightning\Tools\Communicator\RestClient;
 use Lightning\Tools\Configuration;
 use Lightning\Tools\Mailer;
@@ -14,6 +15,7 @@ use Modules\Checkout\Model\Address;
 use Modules\Checkout\Model\Order;
 use Modules\Checkout\Model\Product;
 use Modules\Stripe\Model\StripeCustomer;
+use Modules\Stripe\StripeClient;
 
 class Charge extends API {
 
@@ -71,8 +73,8 @@ class Charge extends API {
         $this->payment_response = Request::post('payment_data', Request::TYPE_ASSOC_ARRAY);
         $this->createCustomer = (!empty($this->meta['create_customer']) && $this->meta['create_customer'] == 'true');
 
-        $this->client = new RestClient('https://api.stripe.com/v1/');
-        $this->client->setBasicAuth(Configuration::get('stripe.private'), '');
+        $this->client = new StripeClient();
+
         if ($this->createCustomer) {
             // TODO: If this fails, it returns OUTPUT::ERROR and tries to continue - it should abort.
             $this->createAndChargeCustomer();
@@ -102,6 +104,44 @@ class Charge extends API {
         $this->sendNotifications();
 
         return Output::SUCCESS;
+    }
+
+    public function postPrepare() {
+        $options = Request::post('options', Request::TYPE_ASSOC_ARRAY);
+        if (!empty($options['product_id'])) {
+            $product = Product::loadByID($options['product_id']);
+        }
+
+        if ((!empty($options['create_customer']) && $options['create_customer'] === 'true') || !empty($product->options['create_customer'])) {
+            // Make sure the user is logged in.
+            $user = ClientUser::getInstance();
+            if ($user->isAnonymous()) {
+                return Output::LOGIN_REQUIRED;
+            }
+
+            $customer = StripeCustomer::loadById($user->id);
+            if (!$customer) {
+                // Create customer
+                $this->client = new StripeClient();
+                $this->client->set('email', $user->email);
+                $this->client->set('description', $user->fullName());
+                $this->client->callPost('customers');
+                $customer = StripeCustomer::createNewForUser($user->id);
+            }
+
+            $postedPaymentMethod = Request::post('new_payment_method', Request::TYPE_ASSOC_ARRAY);
+            if ($postedPaymentMethod && !$customer->addPaymentMethod($postedPaymentMethod)) {
+                // Return error and stay on the same form.
+            }
+
+            if ($source = Request::post('source')) {
+                if (!empty($product->options['subscription'])) {
+                    $customer->setSubscription($product->options['subscription']);
+                }
+            }
+        }
+
+        throw new \Exception('Problem processing the payment');
     }
 
     protected function createAndChargeCustomer() {
