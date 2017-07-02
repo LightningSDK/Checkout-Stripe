@@ -16,5 +16,10 @@ return [
             // Source file => Dest file
             'Stripe.js' => 'Checkout.min.js',
         ]
+    ],
+    'modules' => [
+        'stripe' => [
+            'use_plaid' => false,
+        ]
     ]
 ];

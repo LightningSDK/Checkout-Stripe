@@ -2,6 +2,7 @@
 
 namespace Modules\Stripe\API;
 
+use Exception;
 use Lightning\Model\User;
 use Lightning\Tools\ClientUser;
 use Lightning\Tools\Communicator\RestClient;
@@ -10,8 +11,10 @@ use Lightning\Tools\Mailer;
 use Lightning\Tools\Messenger;
 use Lightning\Tools\Output;
 use Lightning\Tools\Request;
+use Lightning\Tools\Template;
 use Lightning\View\API;
 use Modules\Checkout\Model\Address;
+use Modules\Checkout\Model\LineItem;
 use Modules\Checkout\Model\Order;
 use Modules\Checkout\Model\Product;
 use Modules\Stripe\Model\StripeCustomer;
@@ -119,29 +122,60 @@ class Charge extends API {
                 return Output::LOGIN_REQUIRED;
             }
 
+            // Make sure a Stripe customer exists.
             $customer = StripeCustomer::loadById($user->id);
             if (!$customer) {
-                // Create customer
-                $this->client = new StripeClient();
-                $this->client->set('email', $user->email);
-                $this->client->set('description', $user->fullName());
-                $this->client->callPost('customers');
-                $customer = StripeCustomer::createNewForUser($user->id);
+                $customer = StripeCustomer::createNewForUser($user);
             }
 
-            $postedPaymentMethod = Request::post('new_payment_method', Request::TYPE_ASSOC_ARRAY);
-            if ($postedPaymentMethod && !$customer->addPaymentMethod($postedPaymentMethod)) {
-                // Return error and stay on the same form.
-            }
-
-            if ($source = Request::post('source')) {
-                if (!empty($product->options['subscription'])) {
-                    $customer->setSubscription($product->options['subscription']);
+            // Get the payment source field.
+            if (!empty($options['source'])) {
+                if (is_array($options['source'])) {
+                    // This will be an array if they just entered a new credit card.
+                    $source_id = $customer->createSourceFromCard($options['source']['id'], StripeCustomer::TYPE_CREDIT_CARD);
+                    $customer->attachSource($source_id);
+                } else {
+                    // This will be a string if they selected an existing source.
+                    $source_id = $options['source'];
                 }
+                $customer->setDefaultSource($source_id);
+            } else {
+                // TODO: If payment already exists, give option.
+                $template = new Template();
+                if (!empty($product)) {
+                    $template->set('product', $product);
+                }
+                $template->set('sources', $customer->getSources());
+                return [
+                    'form' => $template->build(['payment-source', 'Stripe'], true),
+                    'init' => 'lightning.modules.stripe.initPaymentSource',
+                ];
             }
+
+            // Create a cart
+            $order = new Order();
+            if ($product) {
+                // If this is a managed item, add it.
+                $product_options = !empty($options['item_options']) ? $options['item_options'] : [];
+                $item_id = $order->addItem($product, Request::post('qty', Request::TYPE_INT), $product_options);
+                $item = LineItem::loadByID($item_id);
+            } else {
+                // Add a custom item.
+            }
+
+            // If this is a subscription, pay it now.
+            if (!empty($product->options['subscription'])) {
+                $subscription = is_array($product->options['subscription']) ? $product->options['subscription'] : ['plan' => $product->options['subscription']];
+                $subscription['qty'] = $item->qty;
+                $customer->startSubscription($subscription);
+                Messenger::message('Your subscription has been activated.');
+                return Output::SUCCESS;
+            }
+
+            // TODO: If this is a cart, pay it now.
         }
 
-        throw new \Exception('Problem processing the payment');
+        throw new Exception('Problem processing the payment');
     }
 
     protected function createAndChargeCustomer() {

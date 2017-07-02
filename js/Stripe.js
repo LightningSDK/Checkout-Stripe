@@ -33,6 +33,93 @@
             self.handler = StripeCheckout.configure(settings);
         },
 
+        /**
+         * Initialization required for the modal window where a user can select from a list of available payment
+         * sources or add a new credit card (or bank account if plaid is enabled).
+         *
+         * @param payment_options
+         */
+        initPaymentSource: function(payment_options) {
+            lightning.js.require('https://js.stripe.com/v3/', function(){
+                var stripe = Stripe(lightning.get('modules.stripe.public'));
+                var elements = stripe.elements();
+                var card = elements.create('card', {style: {base: {
+                    color: '#32325d',
+                    lineHeight: '24px',
+                    fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+                    fontSmoothing: 'antialiased',
+                    fontSize: '16px',
+                    '::placeholder': {
+                        color: '#aab7c4'
+                    }
+                },
+                    invalid: {
+                        color: '#fa755a',
+                        iconColor: '#fa755a'
+                    }}});
+                card.mount('#card-element');
+
+                card.addEventListener('change', function(event) {
+                    var displayError = document.getElementById('card-errors');
+                    if (event.error) {
+                        displayError.textContent = event.error.message;
+                    } else {
+                        displayError.textContent = '';
+                    }
+                });
+
+                // Handle form submission
+                var form = $('#stripe-payment-form');
+                var selectField = form.find('#source-select');
+                var cardRow = form.find('.new-card');
+                var bankRow = form.find('.new-bank');
+
+                selectField.on('change', function(){
+                    cardRow.toggle(selectField.val() === 'new-card');
+                    bankRow.toggle(selectField.val() === 'new-bank');
+                });
+                selectField.trigger('change');
+
+                form.find('#new-bank-signin').on('click', function(){
+                    lightning.modules.plaid.connect();
+                });
+
+                form.on('submit', function(event){
+                    event.preventDefault();
+
+                    switch(selectField.val()) {
+                        case 'new-card':
+                            stripe.createToken(card).then(function(result) {
+                                if (result.error) {
+                                    // Inform the user if there was an error
+                                    var errorElement = document.getElementById('card-errors');
+                                    errorElement.textContent = result.error.message;
+                                } else {
+                                    // Send the token to your server
+                                    payment_options.source = result.token;
+                                    self.prepareTransaction(payment_options);
+                                }
+                            });
+                            break;
+                        case 'new-bank':
+                            lightning.modules.plaid.connect();
+                            break;
+                        default:
+                            payment_options.source = selectField.val();
+                            self.prepareTransaction(payment_options);
+                    }
+                });
+            });
+        },
+
+        addAndSelectBankOption: function(id, description) {
+            var form = $('#stripe-payment-form');
+            var selectField = form.find('#source-select');
+            selectField.append($('<option>').prop('value', id).text(description));
+            selectField.val(id);
+            selectField.trigger('change');
+        },
+
         prepareTransaction: function(purchase_options) {
             // See if we need to prepare anything with the server before the transaction is submitted.
             if (purchase_options.create_customer) {
@@ -44,6 +131,15 @@
                     data: {
                         options: purchase_options,
                         action: 'prepare'
+                    },
+                    success: function(data) {
+                        if (data.hasOwnProperty('form')) {
+                            lightning.dialog.setContent(data.form);
+                        }
+                        if (data.hasOwnProperty('init')) {
+                            var callback = lightning.getMethodReference(data.init);
+                            callback(purchase_options);
+                        }
                     }
                 });
             } else {
