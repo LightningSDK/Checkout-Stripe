@@ -8,6 +8,7 @@ return [
     'routes' => [
         'static' => [
             'api/stripe/charge' => 'Modules\\Stripe\\API\\Charge',
+            'api/stripe/webhook' => 'Modules\\Stripe\\API\\WebHooks',
         ]
     ],
     'js' => [
@@ -20,6 +21,10 @@ return [
     'modules' => [
         'stripe' => [
             'use_plaid' => false,
+            'webhooks' => [
+                'quiet' => false,
+                'private_key' => 'Replace this with your private key.',
+            ]
         ]
     ]
 ];
