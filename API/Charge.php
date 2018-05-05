@@ -157,7 +157,7 @@ class Charge extends API {
             if ($product) {
                 // If this is a managed item, add it.
                 $product_options = !empty($options['item_options']) ? $options['item_options'] : [];
-                $item_id = $order->addItem($product, Request::post('qty', Request::TYPE_INT), $product_options);
+                $item_id = $order->addItem($product, Request::post('qty', Request::TYPE_INT) ?: 1, $product_options);
                 $item = LineItem::loadByID($item_id);
             } else {
                 // Add a custom item.
