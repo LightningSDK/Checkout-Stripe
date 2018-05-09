@@ -7,11 +7,73 @@
         amount: 0,
 
         init: function () {
-            lightning.require('https://checkout.stripe.com/checkout.js', function(){
+            lightning.js.require('https://checkout.stripe.com/checkout.js', function(){
                 // Close Checkout on page navigation:
                 $(window).on('popstate', function () {
                     self.handler.close();
                 });
+            });
+        },
+
+        initElementsCard: function() {
+            // Create a Stripe client.
+            var stripe = Stripe(lightning.get('modules.stripe.public', null));
+
+            // Create an instance of Elements.
+            var elements = stripe.elements();
+
+            // Custom styling can be passed to options when creating an Element.
+            // (Note that this demo uses a wider set of styles than the guide below.)
+            var style = {
+                base: {
+                    color: '#32325d',
+                    lineHeight: '18px',
+                    fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+                    fontSmoothing: 'antialiased',
+                    fontSize: '16px',
+                    '::placeholder': {
+                        color: '#aab7c4'
+                    }
+                },
+                invalid: {
+                    color: '#fa755a',
+                    iconColor: '#fa755a'
+                }
+            };
+
+            // Create an instance of the card Element.
+            var card = elements.create('card', {style: style});
+
+            // Add an instance of the card Element into the `card-element` <div>.
+            card.mount('#card-element');
+
+            // Handle the form submission
+            var form = $('#payment-form');
+            form.on('valid.fndtn.abide', function(event) {
+                event.preventDefault();
+                var tokenData = {
+                    email: form.find('input[name=email]').val(),
+                    name: lightning.get('modules.checkout.cart.name')
+                };
+                var cartId = lightning.get('modules.checkout.cart.id');
+                stripe.createToken(card, tokenData).then(function(result) {
+                    if (result.error) {
+                        // Inform the customer that there was an error.
+                        var errorElement = document.getElementById('card-errors');
+                        errorElement.textContent = result.error.message;
+                    } else {
+                        // Send the token to your server.
+                        self.amount = lightning.get('modules.checkout.cart.amount');
+                        self.meta = {
+                            cart_id: cartId
+                        };
+                        self.process(result.token, null);
+                        self.callback = function() {
+                            document.location = '/store/checkout?page=confirmation&cart_id=' + cartId
+                        };
+                    }
+                });
+                return false;
             });
         },
 
@@ -88,6 +150,7 @@
                     event.preventDefault();
 
                     switch(selectField.val()) {
+                        case undefined:
                         case 'new-card':
                             stripe.createToken(card).then(function(result) {
                                 if (result.error) {

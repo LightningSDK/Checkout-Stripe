@@ -106,5 +106,6 @@ class StripeCustomer extends Object {
         $client->set('plan', $subscription['plan']);
         $client->set('quantity', !empty($subscription['qty']) ? $subscription['qty'] : 1);
         $client->callPost('subscriptions');
+        return $client->get('id');
     }
 }

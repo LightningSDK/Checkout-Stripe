@@ -27,4 +27,23 @@ class StripeClient extends RestClient {
         // Return the subscription.
         return $subscription;
     }
+
+    public function getUserSubscriptions($user_id) {
+        $this->callGet('customers/' . $user_id . '/subscriptions');
+        return $this->get('data');
+    }
+
+    public function getUserSubscrtipionID($user_id, $subscription_id) {
+        $subscriptions = self::getUserSubscriptions($user_id);
+        foreach ($subscriptions as $sub) {
+            if ($sub['status'] != 'active') {
+                continue;
+            }
+            foreach ($sub['items']['data'] as $item) {
+                if ($item['plan']['id'] == $subscription_id) {
+                    return $item['id'];
+                }
+            }
+        }
+    }
 }

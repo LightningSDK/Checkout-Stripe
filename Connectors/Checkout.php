@@ -3,10 +3,14 @@
 namespace Modules\Stripe\Connectors;
 
 use Lightning\Tools\Configuration;
+use Lightning\Tools\Template;
 use Lightning\View\JS;
+use Modules\Checkout\Handlers\Payment;
+use Modules\Checkout\Model\Order;
+use Modules\CoinPayments\APIClient;
 use Modules\Stripe\StripeClient;
 
-class Checkout {
+class Checkout extends Payment {
     public static function init() {
         JS::startup('lightning.modules.stripe.init();', ['Stripe' => 'Stripe.js']);
         JS::set('modules.stripe.public', Configuration::get('stripe.public'));
@@ -20,6 +24,30 @@ class Checkout {
         $stripe = new StripeClient();
         $subscription = $stripe->getPlan($id);
 
-        return '$' . $subscription['amount'] . ' per ' . $subscription['interval'];
+        return '$' . number_format($subscription['amount']/100, 2) . ' per ' . $subscription['interval'];
+    }
+
+    public function getDescription() {
+        return 'Pay with Visa, MasterCard, Discover or American Express';
+    }
+
+    public function getTitle() {
+        return 'Credit card';
+    }
+
+    public function getPage(Order $cart) {
+        if ($cart->hasSubscription()) {
+            return ['payment-source', 'Stripe'];
+        } else {
+            JS::set('modules.stripe.public', Configuration::get('stripe.public'));
+            JS::startup('lightning.modules.stripe.initElementsCard()', ['https://js.stripe.com/v3/']);
+            $order = Order::loadBySession();
+            JS::set('modules.checkout.cart', [
+                'id' => $order->id,
+                'amount' => intval($order->getTotal() * 100),
+                'name' => $cart->requiresShippingAddress() ? $cart->getShippingAddress()->name : '',
+            ]);
+            return ['checkout-payment', 'Stripe'];
+        }
     }
 }

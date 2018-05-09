@@ -67,6 +67,10 @@ class Charge extends API {
      */
     protected $user;
 
+    /**
+     * @return int
+     * @throws Exception
+     */
     public function post() {
         // Create the charge on Stripe's servers - this will charge the user's card
         $this->amount = Request::post('amount', Request::TYPE_INT);
@@ -88,7 +92,7 @@ class Charge extends API {
         $this->createOrSaveOrder();
 
         if (empty($this->order)) {
-            throw new \Exception('Invalid Order');
+            throw new Exception('Invalid Order');
         }
 
         $this->addAddresses();
@@ -96,7 +100,7 @@ class Charge extends API {
 
         // Add the payment to the database.
         $payment = $this->order->addPayment($this->amount, $this->currency, $this->token, [
-            'billing_address' => $this->billing_address->id,
+            'billing_address' => $this->order->billing_address ?: $this->order->shipping_address,
             'time' => $this->payment_response['created'],
             'details' => [
                 'metadata' => $this->meta,
@@ -104,11 +108,15 @@ class Charge extends API {
             ]
         ]);
 
-        $this->sendNotifications();
+        $this->order->sendNotifications();
 
         return Output::SUCCESS;
     }
 
+    /**
+     * @return int
+     * @throws Exception
+     */
     public function postPrepare() {
         $options = Request::post('options', Request::TYPE_ASSOC_ARRAY);
         if (!empty($options['product_id'])) {
@@ -167,12 +175,22 @@ class Charge extends API {
             if (!empty($product->options['subscription'])) {
                 $subscription = is_array($product->options['subscription']) ? $product->options['subscription'] : ['plan' => $product->options['subscription']];
                 $subscription['qty'] = $item->qty;
-                $customer->startSubscription($subscription);
+                $item_options = $item->options;
+                $item_options['subscription_id'] = $customer->startSubscription($subscription);
+                $item->options = $item_options;
+                $item->save();
                 Messenger::message('Your subscription has been activated.');
-                return Output::SUCCESS;
             }
 
             // TODO: If this is a cart, pay it now.
+
+            if (!empty($product->options['after_purchase'])) {
+                if (is_callable(($product->options['after_purchase']))) {
+                    $product->options['after_purchase']($order, $item);
+                }
+            }
+
+            return Output::SUCCESS;
         }
 
         throw new Exception('Problem processing the payment');
@@ -245,17 +263,20 @@ class Charge extends API {
         $this->transactionId = $this->client->get('id');
     }
 
+    /**
+     * @throws Exception
+     */
     protected function createOrSaveOrder() {
         if (!empty($this->meta['cart_id'])) {
             $order_id = intval($this->meta['cart_id']);
             if (empty($order_id)) {
-                throw new \Exception('Invalid Order Id');
+                throw new Exception('Invalid Order Id');
             }
 
             // Payment for an existing order or cart.
-            $this->order = Order::loadByID($order_id);
+            $this->order = Order::loadBySession($order_id);
             if ($this->order->getTotal() * 100 != $this->amount) {
-                throw new \Exception('Invalid Amount');
+                throw new Exception('Invalid Amount');
             }
             $this->order->paid = $this->payment_response['created'];
             $this->order->gateway_id = $this->transactionId;
@@ -281,8 +302,6 @@ class Charge extends API {
             $this->order->save();
             if (!empty($this->meta['product_id'])) {
                 $this->order->addItem($this->meta['product_id'], 1);
-                $product = Product::loadByID($this->meta['product_id']);
-                $this->customProductEmail = $product->options->customer_email;
             }
         }
     }
@@ -341,32 +360,8 @@ class Charge extends API {
         $this->billing_address = $this->getAddress(static::BILLING);
         if (!empty($this->shipping_address) && $this->shipping_address->equalsData($this->billing_address)) {
             $this->billing_address = $this->shipping_address;
-        } else {
+        } elseif (!empty($this->billing_address)) {
             $this->billing_address->save();
         }
-    }
-
-    protected function sendNotifications() {
-        // Set Meta Data for email.
-        $mailer = new Mailer();
-        $mailer->setCustomVariable('META', $this->meta);
-        if ($this->shipping_address) {
-            $mailer->setCustomVariable('SHIPPING_ADDRESS_BLOCK', $this->shipping_address->getHTMLFormatted());
-        }
-
-        $mailer->setCustomVariable('ORDER_DETAILS', $this->order->formatContents());
-
-        // Send emails.
-        if (!empty($this->customProductEmail)) {
-            $mailer->sendOne($this->customProductEmail, $this->user);
-        }
-        if ($buyer_email = Configuration::get('stripe.buyer_email')) {
-            $mailer->sendOne($buyer_email, $this->user);
-        }
-        if ($seller_email = Configuration::get('stripe.seller_email')) {
-            $mailer->sendOne($seller_email, Configuration::get('contact.to')[0]);
-        }
-
-        Messenger::message('Your order has been processed!');
     }
 }
