@@ -196,6 +196,10 @@ class Charge extends API {
         throw new Exception('Problem processing the payment');
     }
 
+    /**
+     * @return int
+     * @throws Exception
+     */
     protected function createAndChargeCustomer() {
         // Create the customer.
         $description = '';
@@ -231,7 +235,12 @@ class Charge extends API {
         $this->transactionId = $this->client->get('id');
 
         // Create a customer entry.
-        $user = User::addUser($this->payment_response['email']);
+        $data = [];
+        if ($ref = ClientUser::getReferrer()) {
+            // Set the referrer.
+            $data['referrer'] = $ref;
+        }
+        $user = User::addUser($this->payment_response['email'], $data);
         $customer = StripeCustomer::loadByID($user->id);
         if ($customer) {
             $customer->customer_id = $customer_id;
@@ -245,6 +254,9 @@ class Charge extends API {
         }
     }
 
+    /**
+     * @return int
+     */
     protected function chargeToken() {
         $this->client->set('amount', $this->amount);
         $this->client->set('currency', $this->currency);
@@ -338,6 +350,9 @@ class Charge extends API {
         return new Address($new_address);
     }
 
+    /**
+     * @throws Exception
+     */
     protected function addAddresses() {
 
         if (empty($this->order->shipping_address)) {
@@ -349,11 +364,16 @@ class Charge extends API {
             }
         }
 
-        $this->user = User::addUser($this->payment_response['email'], [
+        $data = [[
             'full_name' => !empty($this->payment_response['card']['name'])
                 ? $this->payment_response['card']['name']
                 : Request::post('addresses.billing_name', Request::TYPE_STRING, '')
-        ]);
+        ]];
+        if ($ref = ClientUser::getReferrer()) {
+            // Set the referrer.
+            $data['referrer'] = $ref;
+        }
+        $this->user = User::addUser($this->payment_response['email'], $data);
         $this->order->user_id = $this->user->id;
 
         // TODO: Also check if this exists.
