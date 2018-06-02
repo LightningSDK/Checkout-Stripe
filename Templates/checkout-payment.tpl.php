@@ -4,7 +4,7 @@
         <br><br>
         <h4 class="text-center">Your card will be processed securely:</h4>
         <br><br>
-        <form method="post" id="payment-form" data-abide="ajax">
+        <form id="payment-form" data-abide="ajax">
             <div class="form-row">
                 <label>Email address</label>
                 <input type="email" name="email" required>

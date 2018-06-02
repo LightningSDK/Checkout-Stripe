@@ -49,9 +49,11 @@
 
             // Handle the form submission
             var form = $('#payment-form');
+            form.unbind('valid.fndtn.abide');
             form.on('valid.fndtn.abide', function(event) {
                 lightning.dialog.showLoader('Processing your payment...');
                 event.preventDefault();
+                event.stopPropagation();
                 var tokenData = {
                     email: form.find('input[name=email]').val(),
                     name: lightning.get('modules.checkout.cart.name')
