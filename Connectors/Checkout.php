@@ -7,7 +7,6 @@ use Lightning\Tools\Template;
 use Lightning\View\JS;
 use Modules\Checkout\Handlers\Payment;
 use Modules\Checkout\Model\Order;
-use Modules\CoinPayments\APIClient;
 use Modules\Stripe\StripeClient;
 
 class Checkout extends Payment {
@@ -47,6 +46,10 @@ class Checkout extends Payment {
                 'amount' => intval($order->getTotal() * 100),
                 'name' => $cart->requiresShippingAddress() ? $cart->getShippingAddress()->name : '',
             ]);
+
+            $user = $order->getUser();
+            Template::getInstance()->set('email', !empty($user) ? $user->email : '');
+
             return ['checkout-payment', 'Stripe'];
         }
     }

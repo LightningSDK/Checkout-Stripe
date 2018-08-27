@@ -7,7 +7,7 @@
         <form id="payment-form" data-abide="ajax">
             <div class="form-row">
                 <label>Email address</label>
-                <input type="email" name="email" required>
+                <input type="email" name="email" value="<?= $email; ?>" required>
                 <small class="error">Please enter a valid email address</small>
             </div>
             <div class="form-row">
