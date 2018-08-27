@@ -6,6 +6,7 @@ use Exception;
 use Lightning\Tools\Configuration;
 use Lightning\Tools\Request;
 use Lightning\View\API;
+use Modules\Checkout\Model\Subscription;
 
 class WebHooks extends API {
 
@@ -18,6 +19,9 @@ class WebHooks extends API {
         parent::__construct();
     }
 
+    /**
+     * @throws Exception
+     */
     public function post() {
         $this->data = Request::allJson();
 
@@ -29,6 +33,9 @@ class WebHooks extends API {
         }
     }
 
+    /**
+     * @throws Exception
+     */
     protected function verifySignature() {
         $signature = Request::getHeader('Stripe-Signature');
         $signatures = explode(',', $signature);
@@ -47,5 +54,16 @@ class WebHooks extends API {
         if ($verifiedNewSignature != $signature) {
             throw new Exception('Invalid Signature');
         }
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function customerSubscriptionUpdated() {
+        $ubscription_id = $this->data['data']['object']['id'];
+        $subscription = Subscription::loadByGatewayID($ubscription_id);
+        $subscription->status = $this->data['data']['object']['status'];
+        $subscription->updated = time();
+        $subscription->save();
     }
 }
