@@ -5,6 +5,7 @@ use Lightning\Tools\Configuration;
 ?><div class="row">
     <div class="small-12 medium-6 medium-offset-3">
         <form action="/charge" method="post" id="stripe-payment-form">
+            <?= \Lightning\Tools\Form::renderTokenInput(); ?>
             <?php if (!empty($sources) || Configuration::get('modules.stripe.use_plaid')): ?>
                 <div class="form-row">
                     Charge to an existing card:
