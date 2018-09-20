@@ -7,8 +7,8 @@ return [
     ],
     'routes' => [
         'static' => [
-            'api/stripe/charge' => 'Modules\\Stripe\\API\\Charge',
-            'api/stripe/webhook' => 'Modules\\Stripe\\API\\WebHooks',
+            'api/stripe/charge' => \Modules\Stripe\API\Charge::class,
+            'api/stripe/webhook' => \Modules\Stripe\API\WebHooks::class,
         ]
     ],
     'js' => [
@@ -20,6 +20,7 @@ return [
     ],
     'modules' => [
         'stripe' => [
+            'init_view' => [\Modules\Stripe\Connectors\Checkout::class, 'init'],
             'use_plaid' => false,
             'webhooks' => [
                 'quiet' => false,

@@ -287,7 +287,7 @@ class Charge extends API {
 
             // Payment for an existing order or cart.
             $this->order = Order::loadBySession($order_id);
-            if ($this->order->getTotal() * 100 != $this->amount) {
+            if (intval($this->order->getTotal() * 100) != intval($this->amount)) {
                 throw new Exception('Invalid Amount');
             }
             $this->order->paid = $this->payment_response['created'];
