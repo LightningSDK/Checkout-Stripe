@@ -313,7 +313,7 @@ class Charge extends API {
             ]);
             $this->order->save();
             if (!empty($this->meta['product_id'])) {
-                $this->order->addItem($this->meta['product_id'], 1);
+                $this->order->addItem(intval($this->meta['product_id']), 1);
             }
         }
     }
@@ -358,9 +358,11 @@ class Charge extends API {
         if (empty($this->order->shipping_address)) {
             // TODO: Check if the address already exists first.
 
-            if ($this->shipping_address = $this->getAddress(static::SHIPPING)) {
+            if ($this->shipping_address = $this->getAddress(static::SHIPPING) ?? $this->getAddress(static::BILLING)) {
                 $this->shipping_address->save();
                 $this->order->shipping_address = $this->shipping_address->id;
+            } else {
+                $this->order->shipping_address = 0;
             }
         }
 
