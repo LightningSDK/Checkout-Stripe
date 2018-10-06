@@ -26,6 +26,11 @@ class Checkout extends Payment {
         return '$' . number_format($subscription['amount']/100, 2) . ' per ' . $subscription['interval'];
     }
 
+    public function isConfigured() {
+        $config = Configuration::get('modules.stripe');
+        return !empty($config);
+    }
+
     public function getDescription() {
         return 'Pay with Visa, MasterCard, Discover or American Express';
     }
