@@ -39,6 +39,10 @@ class Checkout extends Payment {
         return 'Credit card';
     }
 
+    public function getLogo() {
+        return '/images/checkout/logos/stripe.png';
+    }
+
     public function getPage(Order $cart) {
         if ($cart->hasSubscription()) {
             return ['payment-source', 'Stripe'];

@@ -59,6 +59,10 @@
                     name: lightning.get('modules.checkout.cart.name')
                 };
                 var cartId = lightning.get('modules.checkout.cart.id');
+                lightning.tracker.track(lightning.tracker.events.addPaymentInfo, {
+                        label: cartId
+                    }
+                );
                 stripe.createToken(card, tokenData).then(function(result) {
                     if (result.error) {
                         // Inform the customer that there was an error.
@@ -72,7 +76,13 @@
                         };
                         self.process(result.token, null);
                         self.callback = function() {
+                            lightning.tracker.track(lightning.tracker.events.purchase, {
+                                label: cartId
+                                }
+                            );
+                        setTimeout(function(){
                             document.location = '/store/checkout?page=confirmation&cart_id=' + cartId
+                        }, 3000);
                         };
                     }
                 });
@@ -276,8 +286,11 @@
                     addresses: addresses
                 },
                 success: function (data) {
+                    lightning.tracker.track(lightning.tracker.events.purchase, {});
                     if (self.callback) {
-                        self.callback();
+                        setTimeout(function(){
+                            self.callback();
+                        }, 3000);
                     }
                 }
             });

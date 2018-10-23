@@ -3,7 +3,9 @@
         <br><br>
         <br><br>
         <h4 class="text-center">Your card will be processed securely:</h4>
-        <br><br>
+        <p class="text-center">
+            <img src="/images/checkout/logos/stripe.png" style="height:40px;" />
+        </p>
         <form id="payment-form" data-abide="ajax">
             <div class="form-row">
                 <label>Email address</label>
