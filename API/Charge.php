@@ -34,6 +34,7 @@ class Charge extends API {
     protected $currency;
     protected $meta;
     protected $payment_response;
+    protected $fee;
 
     /**
      * @var RestClient
@@ -105,7 +106,8 @@ class Charge extends API {
             'details' => [
                 'metadata' => $this->meta,
                 'payment_data' => $this->payment_response,
-            ]
+            ],
+            'fee' => $this->fee,
         ]);
 
         $this->order->sendNotifications();
@@ -268,6 +270,7 @@ class Charge extends API {
         $this->client->set('currency', $this->currency);
         $this->client->set('source', $this->token);
         $this->client->set('metadata', $this->meta);
+        $this->client->set('expand', ['balance_transaction']);
         if ($descriptor = Configuration::get('stripe.statement_descriptor')) {
             $this->client->set('statement_descriptor', substr(preg_replace('/[^a-z0-9 ]/i', '', $descriptor), 0, 22));
         }
@@ -283,6 +286,7 @@ class Charge extends API {
         }
 
         $this->transactionId = $this->client->get('id');
+        $this->fee = $this->client->get('balance_transaction.fee');
     }
 
     /**
