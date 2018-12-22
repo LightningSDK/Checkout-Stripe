@@ -211,7 +211,9 @@ class Charge extends API {
         }
         $this->client->set('description', $description);
         $this->client->set('source', $this->token);
-        $this->client->callPost('customers');
+        if (!$this->client->callPost('customers')) {
+            throw new Exception('Could not create customer.');
+        }
 
         if ($this->client->hasErrors()) {
             Output::error($this->client->getErrors());
@@ -225,7 +227,9 @@ class Charge extends API {
         $this->client->set('amount', $this->amount);
         $this->client->set('currency', $this->currency);
         $this->client->set('customer', $customer_id);
-        $this->client->callPost('charges');
+        if (!$this->client->callPost('charges')) {
+            throw new Exception('Could not process payment.');
+        }
 
         if ($this->client->hasErrors()) {
             Output::error($this->client->getErrors());
@@ -256,6 +260,8 @@ class Charge extends API {
 
     /**
      * @return int
+     *
+     * @throws Exception
      */
     protected function chargeToken() {
         $this->client->set('amount', $this->amount);
@@ -265,7 +271,11 @@ class Charge extends API {
         if ($descriptor = Configuration::get('stripe.statement_descriptor')) {
             $this->client->set('statement_descriptor', substr(preg_replace('/[^a-z0-9 ]/i', '', $descriptor), 0, 22));
         }
-        $this->client->callPost('charges');
+
+        if (!$this->client->callPost('charges')) {
+            // TODO: Log this
+            throw new Exception('Your payment could not be processed. Please try another card.');
+        }
 
         if ($this->client->hasErrors()) {
             Output::error($this->client->getErrors());
