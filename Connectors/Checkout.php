@@ -48,7 +48,7 @@ class Checkout extends Payment {
             return ['payment-source', 'Stripe'];
         } else {
             JS::set('modules.stripe.public', Configuration::get('stripe.public'));
-            JS::startup('lightning.modules.stripe.initElementsCard()', ['https://js.stripe.com/v3/']);
+            JS::startup('lightning.modules.stripe.initElementsCard()', ['/js/Checkout.min.js']);
             $order = Order::loadBySession();
             JS::set('modules.checkout.cart', [
                 'id' => $order->id,

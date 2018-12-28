@@ -16,6 +16,15 @@
         },
 
         initElementsCard: function() {
+            lightning.js.require('https://js.stripe.com/v3/', function(){});
+            if (typeof(Stripe) !== 'undefined') {
+                self.setupElementsCard();
+            } else {
+                setTimeout(self.initElementsCard, 500);
+            }
+        },
+
+        setupElementsCard: function() {
             // Create a Stripe client.
             var stripe = Stripe(lightning.get('modules.stripe.public', null));
 
@@ -51,6 +60,11 @@
             var form = $('#payment-form');
             form.unbind('valid.fndtn.abide');
             form.on('valid.fndtn.abide', function(event) {
+                // Validate the card form.
+                if ($('#card-element').hasClass('StripeElement--invalid')) {
+                    return false;
+                }
+
                 lightning.dialog.showLoader('Processing your payment...');
                 event.preventDefault();
                 event.stopPropagation();
@@ -63,11 +77,13 @@
                         label: cartId
                     }
                 );
+
                 stripe.createToken(card, tokenData).then(function(result) {
                     if (result.error) {
                         // Inform the customer that there was an error.
                         var errorElement = document.getElementById('card-errors');
                         errorElement.textContent = result.error.message;
+                        setTimeout(lightning.dialog.hide, 500);
                     } else {
                         // Send the token to your server.
                         self.amount = lightning.get('modules.checkout.cart.amount');
@@ -77,12 +93,12 @@
                         self.process(result.token, null);
                         self.callback = function() {
                             lightning.tracker.track(lightning.tracker.events.purchase, {
-                                label: cartId
+                                    label: cartId
                                 }
                             );
-                        setTimeout(function(){
-                            document.location = '/store/checkout?page=confirmation&cart_id=' + cartId
-                        }, 3000);
+                            setTimeout(function(){
+                                document.location = '/store/checkout?page=confirmation&cart_id=' + cartId
+                            }, 3000);
                         };
                     }
                 });
