@@ -2,8 +2,8 @@
 
 namespace lightningsdk\checkout_stripe\Model;
 
-use Lightning\Model\BaseObject;
-use Lightning\Model\User;
+use lightningsdk\core\Model\BaseObject;
+use lightningsdk\core\Model\User;
 use lightningsdk\checkout_stripe\StripeClient;
 
 class StripeCustomer extends BaseObject {

@@ -1,11 +1,11 @@
 <?php
 
-use Lightning\Tools\Configuration;
+use lightningsdk\core\Tools\Configuration;
 
 ?><div class="row">
     <div class="small-12 medium-6 medium-offset-3">
         <form action="/charge" method="post" id="stripe-payment-form">
-            <?= \Lightning\Tools\Form::renderTokenInput(); ?>
+            <?= \lightningsdk\core\Tools\Form::renderTokenInput(); ?>
             <?php if (!empty($sources) || Configuration::get('modules.stripe.use_plaid')): ?>
                 <div class="form-row">
                     Charge to an existing card:
@@ -41,7 +41,7 @@ use Lightning\Tools\Configuration;
                 <div id="card-errors" role="alert"></div>
                 <div><small>Your card information will be stored securely for future use.</small></div>
             </div>
-            <?php if (\Lightning\Tools\Configuration::get('modules.stripe.use_plaid')): ?>
+            <?php if (\lightningsdk\core\Tools\Configuration::get('modules.stripe.use_plaid')): ?>
                 <div class="form-row new-bank">
                     <span id="new-bank-signin" class="button blue medium right">Sign In</span>
                     <p>To make payments using a checking account, sign in to your bank for instant verification using Plaid.</p>

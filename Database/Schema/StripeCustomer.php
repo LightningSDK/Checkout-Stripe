@@ -2,7 +2,7 @@
 
 namespace lightningsdk\checkout_stripe\Database\Schema;
 
-use Lightning\Database\Schema;
+use lightningsdk\core\Database\Schema;
 
 class StripeCustomer extends Schema {
 

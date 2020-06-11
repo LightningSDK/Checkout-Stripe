@@ -2,9 +2,9 @@
 
 namespace lightningsdk\checkout_stripe\Connectors;
 
-use Lightning\Tools\Configuration;
-use Lightning\Tools\Template;
-use Lightning\View\JS;
+use lightningsdk\core\Tools\Configuration;
+use lightningsdk\core\Tools\Template;
+use lightningsdk\core\View\JS;
 use lightningsdk\checkout\Handlers\Payment;
 use lightningsdk\checkout\Model\Order;
 use lightningsdk\checkout_stripe\StripeClient;

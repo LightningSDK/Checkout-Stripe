@@ -2,9 +2,9 @@
 
 namespace lightningsdk\checkout_stripe;
 
-use Lightning\Tools\Cache\Cache;
-use Lightning\Tools\Communicator\RestClient;
-use Lightning\Tools\Configuration;
+use lightningsdk\core\Tools\Cache\Cache;
+use lightningsdk\core\Tools\Communicator\RestClient;
+use lightningsdk\core\Tools\Configuration;
 
 class StripeClient extends RestClient {
     public function __construct($server_address = '') {
