@@ -7,8 +7,8 @@ return [
     ],
     'routes' => [
         'static' => [
-            'api/stripe/charge' => \Modules\Stripe\API\Charge::class,
-            'api/stripe/webhook' => \Modules\Stripe\API\WebHooks::class,
+            'api/stripe/charge' => \lightningsdk\checkout_stripe\API\Charge::class,
+            'api/stripe/webhook' => \lightningsdk\checkout_stripe\API\WebHooks::class,
         ]
     ],
     'compiler' => [
@@ -22,7 +22,7 @@ return [
     ],
     'modules' => [
         'stripe' => [
-            'init_view' => [\Modules\Stripe\Connectors\Checkout::class, 'init'],
+            'init_view' => [\lightningsdk\checkout_stripe\Connectors\Checkout::class, 'init'],
             'use_plaid' => false,
             'webhooks' => [
                 'quiet' => false,

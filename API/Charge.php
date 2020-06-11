@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Stripe\API;
+namespace lightningsdk\checkout_stripe\API;
 
 use Exception;
 use Lightning\Model\User;
@@ -13,12 +13,12 @@ use Lightning\Tools\Output;
 use Lightning\Tools\Request;
 use Lightning\Tools\Template;
 use Lightning\View\API;
-use Modules\Checkout\Model\Address;
-use Modules\Checkout\Model\LineItem;
-use Modules\Checkout\Model\Order;
-use Modules\Checkout\Model\Product;
-use Modules\Stripe\Model\StripeCustomer;
-use Modules\Stripe\StripeClient;
+use lightningsdk\checkout\Model\Address;
+use lightningsdk\checkout\Model\LineItem;
+use lightningsdk\checkout\Model\Order;
+use lightningsdk\checkout\Model\Product;
+use lightningsdk\checkout_stripe\Model\StripeCustomer;
+use lightningsdk\checkout_stripe\StripeClient;
 
 class Charge extends API {
 

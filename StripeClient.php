@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Stripe;
+namespace lightningsdk\checkout_stripe;
 
 use Lightning\Tools\Cache\Cache;
 use Lightning\Tools\Communicator\RestClient;

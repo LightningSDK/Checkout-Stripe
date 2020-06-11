@@ -1,12 +1,12 @@
 <?php
 
-namespace Modules\Stripe\API;
+namespace lightningsdk\checkout_stripe\API;
 
 use Exception;
 use Lightning\Tools\Configuration;
 use Lightning\Tools\Request;
 use Lightning\View\API;
-use Modules\Checkout\Model\Subscription;
+use lightningsdk\checkout\Model\Subscription;
 
 class WebHooks extends API {
 

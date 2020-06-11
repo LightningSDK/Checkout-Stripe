@@ -1,13 +1,13 @@
 <?php
 
-namespace Modules\Stripe\Connectors;
+namespace lightningsdk\checkout_stripe\Connectors;
 
 use Lightning\Tools\Configuration;
 use Lightning\Tools\Template;
 use Lightning\View\JS;
-use Modules\Checkout\Handlers\Payment;
-use Modules\Checkout\Model\Order;
-use Modules\Stripe\StripeClient;
+use lightningsdk\checkout\Handlers\Payment;
+use lightningsdk\checkout\Model\Order;
+use lightningsdk\checkout_stripe\StripeClient;
 
 class Checkout extends Payment {
     public static function init() {

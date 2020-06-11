@@ -1,10 +1,10 @@
 <?php
 
-namespace Modules\Stripe\Model;
+namespace lightningsdk\checkout_stripe\Model;
 
 use Lightning\Model\BaseObject;
 use Lightning\Model\User;
-use Modules\Stripe\StripeClient;
+use lightningsdk\checkout_stripe\StripeClient;
 
 class StripeCustomer extends BaseObject {
     const TABLE = 'stripe_customer';

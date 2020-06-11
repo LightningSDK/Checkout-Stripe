@@ -1,5 +1,5 @@
 {
-  "name": "lightningsdk/checkout-strripe",
+  "name": "lightningsdk/checkout-stripe",
   "type": "library",
   "description": "Adds Stripe integration to Checkout.",
   "version": "1.0.0",
