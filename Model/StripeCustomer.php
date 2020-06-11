@@ -2,11 +2,11 @@
 
 namespace Modules\Stripe\Model;
 
-use Lightning\Model\Object;
+use Lightning\Model\BaseObject;
 use Lightning\Model\User;
 use Modules\Stripe\StripeClient;
 
-class StripeCustomer extends Object {
+class StripeCustomer extends BaseObject {
     const TABLE = 'stripe_customer';
     const PRIMARY_KEY = 'user_id';
 

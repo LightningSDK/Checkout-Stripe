@@ -11,12 +11,14 @@ return [
             'api/stripe/webhook' => \Modules\Stripe\API\WebHooks::class,
         ]
     ],
-    'js' => [
-        // Module Name
-        'Stripe' => [
-            // Source file => Dest file
-            'Stripe.js' => 'Checkout.min.js',
-        ]
+    'compiler' => [
+        'js' => [
+            // Module Name
+            'Stripe' => [
+                // Source file => Dest file
+                'Stripe.js' => 'Checkout.min.js',
+            ]
+        ],
     ],
     'modules' => [
         'stripe' => [
