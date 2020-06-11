@@ -380,11 +380,11 @@ class Charge extends API {
             }
         }
 
-        $data = [[
+        $data = [
             'full_name' => !empty($this->payment_response['card']['name'])
                 ? $this->payment_response['card']['name']
                 : Request::post('addresses.billing_name', Request::TYPE_STRING, '')
-        ]];
+        ];
         if ($ref = ClientUser::getReferrer()) {
             // Set the referrer.
             $data['referrer'] = $ref;
