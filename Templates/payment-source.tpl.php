@@ -2,8 +2,8 @@
 
 use lightningsdk\core\Tools\Configuration;
 
-?><div class="row">
-    <div class="small-12 medium-6 medium-offset-3">
+?><div class="grid-x">
+    <div class="cell small-12 medium-6 medium-offset-3">
         <form action="/charge" method="post" id="stripe-payment-form">
             <?= \lightningsdk\core\Tools\Form::renderTokenInput(); ?>
             <?php if (!empty($sources) || Configuration::get('modules.stripe.use_plaid')): ?>

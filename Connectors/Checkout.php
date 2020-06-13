@@ -11,7 +11,7 @@ use lightningsdk\checkout_stripe\StripeClient;
 
 class Checkout extends Payment {
     public static function init() {
-        JS::startup('lightning.modules.stripe.init();', ['Stripe' => 'Stripe.js']);
+        JS::startup('lightning.modules.stripe.init();', ['lightningsdk/checkout-stripe' => 'Stripe.js']);
         JS::set('modules.stripe.public', Configuration::get('stripe.public'));
         if (Configuration::get('modules.stripe.use_plaid')) {
             JS::set('modules.plaid.public_key', Configuration::get('modules.plaid.public_key'));
@@ -48,7 +48,7 @@ class Checkout extends Payment {
             return ['payment-source', 'Stripe'];
         } else {
             JS::set('modules.stripe.public', Configuration::get('stripe.public'));
-            JS::startup('lightning.modules.stripe.initElementsCard()', ['/js/Checkout.min.js']);
+            JS::startup('lightning.modules.stripe.initElementsCard()', ['lightningsdk/checkout-stripe' => 'Stripe.js']);
             $order = Order::loadBySession();
             JS::set('modules.checkout.cart', [
                 'id' => $order->id,
@@ -59,7 +59,7 @@ class Checkout extends Payment {
             $user = $order->getUser();
             Template::getInstance()->set('email', !empty($user) ? $user->email : '');
 
-            return ['checkout-payment', 'Stripe'];
+            return ['checkout-payment', 'lightningsdk/checkout-stripe'];
         }
     }
 }

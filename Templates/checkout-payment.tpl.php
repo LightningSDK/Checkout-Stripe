@@ -1,5 +1,5 @@
-<div class="row">
-    <div class="column small-12 medium-8 large-6 medium-offset-2 large-offset-3">
+<div class="grid-x">
+    <div class="cell small-12 medium-8 large-6 medium-offset-2 large-offset-3">
         <br><br>
         <br><br>
         <h4 class="text-center">Your card will be processed securely:</h4>
@@ -25,7 +25,7 @@
             </div>
 <br><br>
             <div class="text-center">
-                <button>Submit Payment</button>
+                <button class="button">Submit Payment</button>
             </div>
         </form>
         <br><br>

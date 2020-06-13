@@ -14,7 +14,7 @@ return [
     'compiler' => [
         'js' => [
             // Module Name
-            'Stripe' => [
+            'lightningsdk/checkout-stripe' => [
                 // Source file => Dest file
                 'Stripe.js' => 'Checkout.min.js',
             ]
